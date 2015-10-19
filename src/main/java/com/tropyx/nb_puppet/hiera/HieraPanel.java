@@ -31,6 +31,7 @@ public class HieraPanel extends javax.swing.JPanel {
     private Project project;
     private AuxiliaryProperties prefs;
     public static final String HIERALOCATION = "hiera.location";
+    public static final String HIERADATALOCATION = "hiera.data.location";
     
 
     public HieraPanel() {
@@ -59,6 +60,7 @@ public class HieraPanel extends javax.swing.JPanel {
 
     private void doSave() {
          prefs.put(HIERALOCATION, txtHieraLocation.getText(), true);
+         prefs.put(HIERADATALOCATION, txtHieradata.getText(), true);
     }
 
     /**
@@ -72,10 +74,16 @@ public class HieraPanel extends javax.swing.JPanel {
 
         lblHiera = new javax.swing.JLabel();
         txtHieraLocation = new javax.swing.JTextField();
+        jLabel1 = new javax.swing.JLabel();
+        txtHieradata = new javax.swing.JTextField();
 
         org.openide.awt.Mnemonics.setLocalizedText(lblHiera, org.openide.util.NbBundle.getMessage(HieraPanel.class, "HieraPanel.lblHiera.text")); // NOI18N
 
         txtHieraLocation.setText(org.openide.util.NbBundle.getMessage(HieraPanel.class, "HieraPanel.txtHieraLocation.text")); // NOI18N
+
+        org.openide.awt.Mnemonics.setLocalizedText(jLabel1, org.openide.util.NbBundle.getMessage(HieraPanel.class, "HieraPanel.jLabel1.text")); // NOI18N
+
+        txtHieradata.setText(org.openide.util.NbBundle.getMessage(HieraPanel.class, "HieraPanel.txtHieradata.text")); // NOI18N
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -83,9 +91,13 @@ public class HieraPanel extends javax.swing.JPanel {
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(lblHiera)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(lblHiera)
+                    .addComponent(jLabel1))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(txtHieraLocation, javax.swing.GroupLayout.DEFAULT_SIZE, 284, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(txtHieraLocation, javax.swing.GroupLayout.DEFAULT_SIZE, 277, Short.MAX_VALUE)
+                    .addComponent(txtHieradata))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -95,13 +107,19 @@ public class HieraPanel extends javax.swing.JPanel {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(lblHiera)
                     .addComponent(txtHieraLocation, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(266, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel1)
+                    .addComponent(txtHieradata, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(232, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel lblHiera;
     private javax.swing.JTextField txtHieraLocation;
+    private javax.swing.JTextField txtHieradata;
     // End of variables declaration//GEN-END:variables
 }

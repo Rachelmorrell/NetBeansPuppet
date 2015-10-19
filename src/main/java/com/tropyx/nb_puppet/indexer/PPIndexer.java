@@ -17,6 +17,7 @@
 
 package com.tropyx.nb_puppet.indexer;
 
+import com.tropyx.nb_puppet.hiera.HieraYamlProvider;
 import com.tropyx.nb_puppet.parser.PClass;
 import com.tropyx.nb_puppet.parser.PClassParam;
 import com.tropyx.nb_puppet.parser.PClassRef;
@@ -35,12 +36,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.netbeans.api.project.FileOwnerQuery;
+import org.netbeans.api.project.Project;
 import org.netbeans.modules.parsing.spi.Parser;
 import org.netbeans.modules.parsing.spi.indexing.Context;
 import org.netbeans.modules.parsing.spi.indexing.EmbeddingIndexer;
 import org.netbeans.modules.parsing.spi.indexing.Indexable;
 import org.netbeans.modules.parsing.spi.indexing.support.IndexDocument;
 import org.netbeans.modules.parsing.spi.indexing.support.IndexingSupport;
+import org.openide.filesystems.FileObject;
 
 public class PPIndexer extends EmbeddingIndexer {
     public static final String FLD_VARREF = "varref";
@@ -140,6 +144,17 @@ public class PPIndexer extends EmbeddingIndexer {
             }
             for (String f : fNames) {
                 document.addPair(FLD_FUNCTION, f, true, false);
+            }
+        }
+        if (indexable.getRelativePath().endsWith("site.pp")) {
+            FileObject fo = context.getRoot();
+            if (fo != null) {
+                Project p = FileOwnerQuery.getOwner(fo);
+                if (p != null) {
+                    HieraYamlProvider.Data data = HieraYamlProvider.getHieraYaml(p);
+                    System.out.println("data:" + data);
+                }
+
             }
         }
         support.addDocument(document);
