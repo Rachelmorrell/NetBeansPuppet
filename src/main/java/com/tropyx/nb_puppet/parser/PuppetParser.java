@@ -531,7 +531,20 @@ class PuppetParser extends Parser {
                     return null;
                 }
             } else {
-                throw new IllegalStateException("token:" + token.text().toString() + " of type:" + token.id() + " in " + ts.toString());
+                PTokenId[] stops;
+                if (inBracket) {
+                    stops = new PTokenId[] { PTokenId.COLON, PTokenId.COMMA, PTokenId.RBRACKET};
+                } else {
+                    stops = new PTokenId[] { PTokenId.COLON, PTokenId.COMMA};
+                }
+                titles.add(fastForward(null, ts, false, stops));
+                token = ts.token();
+                if (matches(token, PTokenId.COMMA)) {
+
+                } else if (inBracket && matches(token, PTokenId.RBRACKET)) {
+                    inBracket = false;
+                }
+                prevBackoffWhitespaceComment(ts);
             }
             token = nextSkipWhitespaceComment(ts);
             if (token != null && token.id() == PTokenId.COLON) {
