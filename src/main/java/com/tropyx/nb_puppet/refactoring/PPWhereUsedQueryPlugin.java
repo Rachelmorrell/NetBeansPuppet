@@ -70,9 +70,9 @@ public class PPWhereUsedQueryPlugin implements RefactoringPlugin {
 
     private static String getVariableName(PPElementContext context) {
         final PElement caretNode = context.getCaretNode();
-        if (caretNode.getType() == PElement.VARIABLE) {
+        if (caretNode.getKind() == PElement.VARIABLE) {
             return  ((PVariable)caretNode).getName();
-        } else if (caretNode.getType() == PElement.VARIABLE_DEFINITION) {
+        } else if (caretNode.getKind() == PElement.VARIABLE_DEFINITION) {
             return  ((PVariableDefinition)caretNode).getName();
         }
         return null;
@@ -80,7 +80,7 @@ public class PPWhereUsedQueryPlugin implements RefactoringPlugin {
 
     private static String getFunctionName(PPElementContext context) {
         final PElement caretNode = context.getCaretNode();
-        if (caretNode.getType() == PElement.FUNCTION) {
+        if (caretNode.getKind() == PElement.FUNCTION) {
             return ((PFunction)caretNode).getName();
         }
         return null;
@@ -88,8 +88,8 @@ public class PPWhereUsedQueryPlugin implements RefactoringPlugin {
 
     private static String getClassRefName(PPElementContext context) {
         final PElement caretNode = context.getCaretNode();
-        if (caretNode.isType(PElement.IDENTIFIER) &&
-                (caretNode.getParent().isType(PElement.CLASS) || caretNode.getParent().isType(PElement.CLASS_REF) )) {
+        if (caretNode.isKind(PElement.IDENTIFIER) &&
+                (caretNode.getParent().isKind(PElement.CLASS) || caretNode.getParent().isKind(PElement.CLASS_REF) )) {
             return ((PIdentifier)caretNode).getName();
         }
         return null;
@@ -307,7 +307,7 @@ public class PPWhereUsedQueryPlugin implements RefactoringPlugin {
                         if (result.getRootNode() != null) {
                             for (PIdentifier id : result.getRootNode().getChildrenOfType(PIdentifier.class, true)) {
                                 if (classRef.equals(id.getName()) &&
-                                        (id.getParent().isType(PElement.CLASS) || id.getParent().isType(PElement.CLASS_REF))) {
+                                        (id.getParent().isKind(PElement.CLASS) || id.getParent().isKind(PElement.CLASS_REF))) {
                                     String line = createHightlightTextLine(file, id.getOffset(), id.getName().length());
                                     elements.add(refactoring, new PPWhereUsedElement(line.trim(), file, boundsForElement(file, id, id.getName())));
                                 }

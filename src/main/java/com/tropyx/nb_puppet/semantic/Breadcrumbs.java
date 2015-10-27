@@ -79,7 +79,7 @@ public class Breadcrumbs extends ParserResultTask<PuppetParserResult> {
     }
 
     private static boolean isSuitable(PElement child) {
-        switch (child.getType()) {
+        switch (child.getKind()) {
             case PElement.CASE:
             case PElement.CLASS:
             case PElement.CONDITION:
@@ -153,7 +153,7 @@ public class Breadcrumbs extends ParserResultTask<PuppetParserResult> {
             if (current == null) {
                 return BreadcrumbsController.NO_ICON;
             }
-            switch (current.getType()) {
+            switch (current.getKind()) {
                 case PElement.RESOURCE:
                     return ImageUtilities.loadImage(PPConstants.RESOURCE_ICON);
                 case PElement.FUNCTION:
@@ -193,7 +193,7 @@ public class Breadcrumbs extends ParserResultTask<PuppetParserResult> {
             if (current == null) {
                 return "";
             }
-            switch (current.getType()) {
+            switch (current.getKind()) {
                 case PElement.CASE:
                     return "case";
                 case PElement.CLASS:
@@ -207,7 +207,7 @@ public class Breadcrumbs extends ParserResultTask<PuppetParserResult> {
                     return "node";
                 case PElement.RESOURCE:
                     PResource r = (PResource)current;
-                    return r.getResourceType();
+                    return r.getResourceType().getType();
                 case PElement.FUNCTION:
                     PFunction f = (PFunction)current;
                     return f.getName();

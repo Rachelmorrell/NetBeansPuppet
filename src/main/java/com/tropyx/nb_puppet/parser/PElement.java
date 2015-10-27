@@ -34,7 +34,7 @@ public class PElement {
     public static final int ARRAY = 8;
     public static final int HASH = 9;
     public static final int REGEXP = 10;
-    public static final int REFERENCE = 11;
+    public static final int TYPE_REF = 11;
     public static final int BLOB = 12;
     public static final int VARIABLE_DEFINITION = 13;
     public static final int DEFINE = 14;
@@ -43,14 +43,18 @@ public class PElement {
     public static final int CONDITION = 17;
     public static final int FUNCTION = 18;
     public static final int IDENTIFIER = 19;
+    public static final int NUMBER = 20;
+    public static final int FLOAT = 21;
+    public static final int ERROR = 22;
+    public static final int RESOURCE_REF = 23;
 
-    private final int type;    
+    private final int kind;    
     private final List<PElement> children = new ArrayList<>();
     private PElement parent;
     private final int offset;
 
     public PElement(int type, PElement parent, int offset) {
-        this.type = type;
+        this.kind = type;
         this.offset = offset;
         setParent(parent);
     }
@@ -97,7 +101,7 @@ public class PElement {
 
     public final void setParent(PElement parent) {
         if (this.parent != null) {
-            throw new IllegalStateException("Cannot reassign parent element");
+            this.parent.removeChild(this);
         }
         this.parent = parent;
         if (parent != null) {
@@ -117,16 +121,20 @@ public class PElement {
         return getOffset(); //TODO??
     }
     
-    public int getType() {
-        return type;
+    public int getKind() {
+        return kind;
     }
 
-    public boolean isType(int type) {
-        return this.type == type;
+    public boolean isKind(int type) {
+        return this.kind == type;
     }
 
     private void addChild(PElement aThis) {
         children.add(aThis);
+    }
+
+    private void removeChild(PElement aThis) {
+        children.remove(aThis);
     }
 
     public String toStringRecursive() {

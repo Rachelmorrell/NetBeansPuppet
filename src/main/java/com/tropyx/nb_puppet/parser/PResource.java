@@ -21,25 +21,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PResource extends PElement {
-    private PElement title;
-    private final String resourceType;
+    private final List<PElement> titles = new ArrayList<>();
+    private final PTypeReference resourceType;
     private final List<PResourceAttribute> atributes = new ArrayList<>();
     
-    public PResource(PElement parent, int offset, String resourceType) {
+    public PResource(PElement parent, int offset, PTypeReference resourceType) {
         super(RESOURCE, parent, offset);
         this.resourceType = resourceType;
     }
 
-    public String getResourceType() {
+    public PTypeReference getResourceType() {
         return resourceType;
     }
 
-    void setTitle(PElement title) {
-        this.title = title;
+    void addTitle(PElement title) {
+        titles.add(title);
     }
 
-    public PElement getTitle() {
-        return title;
+    public List<PElement> getTitles() {
+        return titles;
     }
 
     public List<PResourceAttribute> getAtributes() {

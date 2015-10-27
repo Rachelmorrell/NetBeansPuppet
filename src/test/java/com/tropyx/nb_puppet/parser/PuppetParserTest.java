@@ -267,9 +267,11 @@ public class PuppetParserTest extends NbTestCase {
         PClass c = assertAndGetClassElement(result);
         assertEquals("aaa::install", c.getName());
         PResource res = c.getChildrenOfType(PResource.class, true).get(0);
-        assertEquals("file", res.getResourceType());
-        assertNotNull(res.getTitle());
-        assertEquals(PString.STRING, res.getTitle().getType());
+        assertEquals("File", res.getResourceType().getType());
+        assertFalse(res.getResourceType().isDataType());
+        assertEquals(1, res.getTitles().size());
+        assertTrue(res.getTitles().get(0).isKind(PElement.RESOURCE_REF));
+        assertEquals(1, res.getTitles().get(0).getChildrenOfType(PString.class, true).size());
         assertEquals(2, res.getAtributes().size());
         assertEquals("ensure", res.getAtributes().get(0).getName());
 //        assertEquals("present", res.getAtributes().get(0).getValue());
@@ -288,10 +290,12 @@ public class PuppetParserTest extends NbTestCase {
         PClass c = assertAndGetClassElement(result);
         assertEquals("aaa::install", c.getName());
         PResource res = c.getChildrenOfType(PResource.class, true).get(0);
-        assertEquals("file", res.getResourceType());
-        assertNotNull(res.getTitle());
-        assertEquals(PString.VARIABLE, res.getTitle().getType());
-        assertEquals("$aaa::params::fff", ((PVariable)res.getTitle()).getName());
+        assertEquals("File", res.getResourceType().getType());
+        assertFalse(res.getResourceType().isDataType());
+        assertEquals(1, res.getTitles().size());
+        assertTrue(res.getTitles().get(0).isKind(PElement.RESOURCE_REF));
+        assertEquals(1, res.getTitles().get(0).getChildrenOfType(PVariable.class, true).size());
+        assertEquals("$aaa::params::fff", (res.getTitles().get(0).getChildrenOfType(PVariable.class, true)).get(0).getName());
         assertEquals(3, res.getAtributes().size());
         assertEquals("foo", res.getAtributes().get(2).getName());
 //        assertEquals("644", res.getAtributes().get(2).getValue());
@@ -310,15 +314,17 @@ public class PuppetParserTest extends NbTestCase {
         PClass c = assertAndGetClassElement(result);
         assertEquals("aaa::install", c.getName());
         PResource res = c.getChildrenOfType(PResource.class, true).get(0);
-        assertEquals("file", res.getResourceType());
-        assertNotNull(res.getTitle());
-        assertEquals(PString.BLOB, res.getTitle().getType());
+        assertEquals("File", res.getResourceType().getType());
+        assertFalse(res.getResourceType().isDataType());
+        assertEquals(2, res.getTitles().size());
+        assertTrue(res.getTitles().get(0).isKind(PElement.RESOURCE_REF));
+        assertEquals(1, res.getTitles().get(0).getChildrenOfType(PVariable.class, true).size());
+        assertEquals("$aaa::params::fff", (res.getTitles().get(0).getChildrenOfType(PVariable.class, true)).get(0).getName());
+        assertTrue(res.getTitles().get(1).isKind(PElement.RESOURCE_REF));
+        assertEquals(1, res.getTitles().get(1).getChildrenOfType(PString.class, true).size());
+        assertEquals("aaa", (res.getTitles().get(1).getChildrenOfType(PString.class, true)).get(0).getValue());
         assertEquals(3, res.getAtributes().size());
         assertEquals("foo", res.getAtributes().get(2).getName());
-        List<PVariable> vars = res.getTitle().getChildrenOfType(PVariable.class, true);
-        assertEquals(1, vars.size());
-        List<PString> strings = res.getTitle().getChildrenOfType(PString.class, true);
-        assertEquals(1, strings.size());
     }
     
     @Test
@@ -333,9 +339,11 @@ public class PuppetParserTest extends NbTestCase {
         PClass c = assertAndGetClassElement(result);
         assertEquals("aaa::install", c.getName());
         PResource res = c.getChildrenOfType(PResource.class, true).get(0);
-        assertEquals("file", res.getResourceType());
-        assertNotNull(res.getTitle());
-        assertEquals(PString.STRING, res.getTitle().getType());
+        assertEquals("File", res.getResourceType().getType());
+        assertFalse(res.getResourceType().isDataType());
+        assertEquals(1, res.getTitles().size());
+        assertTrue(res.getTitles().get(0).isKind(PElement.RESOURCE_REF));
+        assertEquals(1, res.getTitles().get(0).getChildrenOfType(PString.class, true).size());
         assertEquals(2, res.getAtributes().size());
         assertEquals("unless", res.getAtributes().get(0).getName());
         assertEquals("path", res.getAtributes().get(1).getName());
@@ -352,9 +360,11 @@ public class PuppetParserTest extends NbTestCase {
              + " }");
         PClass c = assertAndGetClassElement(result);
         PResource res = c.getChildrenOfType(PResource.class, true).get(0);
-        assertEquals("file", res.getResourceType());
-        assertNotNull(res.getTitle());
-        assertEquals(PString.STRING, res.getTitle().getType());
+        assertEquals("File", res.getResourceType().getType());
+        assertFalse(res.getResourceType().isDataType());
+        assertEquals(1, res.getTitles().size());
+        assertTrue(res.getTitles().get(0).isKind(PElement.RESOURCE_REF));
+        assertEquals(1, res.getTitles().get(0).getChildrenOfType(PString.class, true).size());
         assertEquals(2, res.getAtributes().size());
         assertEquals("before", res.getAtributes().get(0).getName());
         assertEquals("path", res.getAtributes().get(1).getName());
@@ -366,22 +376,72 @@ public class PuppetParserTest extends NbTestCase {
         PuppetParserResult result = doParse(
                "class aaa::install { "
              + " File { "
+             + "  notify => Service[$bamboo_agent::service_name] "
+             + " }\n"
+             + " File { "
+             + "  notify => Service[$bamboo_agent::service_name], "
+             + " }\n"
+             + " File { "
+             + "  notify => Service[$bamboo_agent::service_name] "
+             + " }"
+             + "}");
+        PClass c = assertAndGetClassElement(result);
+        assertEquals("aaa::install", c.getName());
+        for (PResource res : c.getChildrenOfType(PResource.class, true)) {
+            assertEquals("File", res.getResourceType().getType());
+            assertTrue(res.getTitles().isEmpty());
+            assertEquals(1, res.getAtributes().size());
+            assertEquals("notify", res.getAtributes().get(0).getName());
+            List<PTypeReference> types = res.getAtributes().get(0).getChildrenOfType(PTypeReference.class, true);
+            assertEquals(1, types.size());
+            assertEquals("Service", types.get(0).getType());
+            assertEquals(1, types.get(0).getChildrenOfType(PVariable.class, true).size());
+        }
+
+    }
+
+    @Test
+    public void testDefaultResourceParse2() throws Exception {
+        PuppetParserResult result = doParse(
+               "class aaa::install { "
+             + " Resource[File] { "
              + "  notify => Service[$bamboo_agent::service_name], "
              + " }"
              + "}");
         PClass c = assertAndGetClassElement(result);
         assertEquals("aaa::install", c.getName());
         PResource res = c.getChildrenOfType(PResource.class, true).get(0);
-        assertEquals("File", res.getResourceType());
-        assertNull(res.getTitle());
+        assertEquals("Resource", res.getResourceType().getType());
+        assertTrue(res.getTitles().isEmpty());
         assertEquals(1, res.getAtributes().size());
         assertEquals("notify", res.getAtributes().get(0).getName());
         List<PTypeReference> types = res.getAtributes().get(0).getChildrenOfType(PTypeReference.class, true);
         assertEquals(1, types.size());
-        assertEquals("Service", types.get(0).getResourceType());
+        assertEquals("Service", types.get(0).getType());
         assertEquals(1, types.get(0).getChildrenOfType(PVariable.class, true).size());
 
     }
+    @Test
+    public void testDefaultResourceParse3() throws Exception {
+        PuppetParserResult result = doParse(
+               "class aaa::install { "
+             + " Resource['file'] { "
+             + "  notify => Service[$bamboo_agent::service_name], "
+             + " }"
+             + "}");
+        PClass c = assertAndGetClassElement(result);
+        assertEquals("aaa::install", c.getName());
+        PResource res = c.getChildrenOfType(PResource.class, true).get(0);
+        assertEquals("Resource", res.getResourceType().getType());
+        assertTrue(res.getTitles().isEmpty());
+        assertEquals(1, res.getAtributes().size());
+        assertEquals("notify", res.getAtributes().get(0).getName());
+        List<PTypeReference> types = res.getAtributes().get(0).getChildrenOfType(PTypeReference.class, true);
+        assertEquals(1, types.size());
+        assertEquals("Service", types.get(0).getType());
+        assertEquals(1, types.get(0).getChildrenOfType(PVariable.class, true).size());
+    }
+
     @Test
     public void testNotifyComplexParse() throws Exception {
         PuppetParserResult result = doParse(
@@ -394,9 +454,14 @@ public class PuppetParserTest extends NbTestCase {
         PResource res = c.getChildrenOfType(PResource.class, true).get(0);
         List<PTypeReference> types = res.getAtributes().get(0).getChildrenOfType(PTypeReference.class, true);
         assertEquals(1, types.size());
-        assertEquals("Service", types.get(0).getResourceType());
+        assertEquals("Service", types.get(0).getType());
         assertEquals(1, types.get(0).getChildrenOfType(PVariable.class, true).size());
         assertEquals(2, types.get(0).getChildrenOfType(PString.class, true).size());
+        List<PResourceRef> refs = res.getAtributes().get(0).getChildrenOfType(PResourceRef.class, true);
+        assertEquals(3, refs.size());
+        assertEquals("Service", refs.get(0).getType());
+        assertEquals("Service", refs.get(1).getType());
+        assertEquals("Service", refs.get(2).getType());
     }
 
 
@@ -415,10 +480,10 @@ public class PuppetParserTest extends NbTestCase {
         PClass c = assertAndGetClassElement(result);
         assertEquals("aaa::install", c.getName());
         PResource res = c.getChildrenOfType(PResource.class, true).get(0);
-        assertEquals("file", res.getResourceType());
-        assertNotNull(res.getTitle());
-        assertEquals(PString.VARIABLE, res.getTitle().getType());
-        assertEquals("$aaa::params::fff", ((PVariable)res.getTitle()).getName());
+        assertEquals("File", res.getResourceType().getType());
+        assertFalse(res.getResourceType().isDataType());
+        assertEquals(1, res.getTitles().size());
+        assertTrue(res.getTitles().get(0).isKind(PElement.RESOURCE_REF));
         assertEquals(3, res.getAtributes().size());
         assertEquals("foo", res.getAtributes().get(2).getName());
     }
@@ -699,7 +764,7 @@ public class PuppetParserTest extends NbTestCase {
         assertNotNull(children);
         assertEquals(1, children.size());
         PElement ch = children.get(0);
-        assertEquals(PElement.CLASS, ch.getType());
+        assertEquals(PElement.CLASS, ch.getKind());
         PClass c = (PClass)ch;
         return c;
     }
@@ -711,7 +776,7 @@ public class PuppetParserTest extends NbTestCase {
         assertNotNull(children);
         assertEquals(1, children.size());
         PElement ch = children.get(0);
-        assertEquals(PElement.NODE, ch.getType());
+        assertEquals(PElement.NODE, ch.getKind());
         PNode c = (PNode)ch;
         return c;
     }

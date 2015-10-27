@@ -106,25 +106,25 @@ public class PHyperlinkProvider implements HyperlinkProviderExt {
                     return;
                 }
                 PElement currentNode = rootNode.getChildAtOffset(offset);
-                if (currentNode.isType(PElement.VARIABLE) || currentNode.isType(PElement.VARIABLE_DEFINITION)) {
+                if (currentNode.isKind(PElement.VARIABLE) || currentNode.isKind(PElement.VARIABLE_DEFINITION)) {
                     fTokenOff[0] = currentNode.getOffset();
-                    fValue[0] = currentNode.isType(PElement.VARIABLE) ? ((PVariable)currentNode).getName() : ((PVariableDefinition)currentNode).getName();
+                    fValue[0] = currentNode.isKind(PElement.VARIABLE) ? ((PVariable)currentNode).getName() : ((PVariableDefinition)currentNode).getName();
                     if (!fValue[0].startsWith("$::")) {
                         fAssociatedType[0] = TYPE_VARIABLE;
                     }
-                } else if (currentNode.isType(PElement.IDENTIFIER)) {
+                } else if (currentNode.isKind(PElement.IDENTIFIER)) {
                     PElement parent = currentNode.getParentIgnore(PBlob.class);
                     if (parent != null) {
-                        if (parent.getType() == PElement.CLASS_REF) {
+                        if (parent.getKind() == PElement.CLASS_REF) {
                             fTokenOff[0] = currentNode.getOffset();
                             fAssociatedType[0] = TYPE_CLASS_REF;
                             fValue[0] = ((PIdentifier)currentNode).getName();
                         }
                     }
-                } else if (currentNode.isType(PElement.STRING)) {
+                } else if (currentNode.isKind(PElement.STRING)) {
                     PElement parent = currentNode.getParentIgnore(PBlob.class);
                     if (parent != null) {
-                        if (parent.getType() == PElement.FUNCTION) {
+                        if (parent.getKind() == PElement.FUNCTION) {
                             PFunction f = (PFunction)parent;
                             if ("template".equals(f.getName())) {
                                 fTokenOff[0] = currentNode.getOffset() + 1;

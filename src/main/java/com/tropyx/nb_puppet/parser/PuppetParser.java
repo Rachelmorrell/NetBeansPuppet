@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.swing.event.ChangeListener;
+import org.netbeans.api.annotations.common.CheckForNull;
 import org.netbeans.api.annotations.common.NonNull;
 import org.netbeans.api.annotations.common.NullAllowed;
 import org.netbeans.api.lexer.Token;
@@ -92,8 +93,8 @@ class PuppetParser extends Parser {
         return new PuppetParserResult(snapshot, root);
     }
 
-    private Token<PTokenId> skipWhitespaceComment(TokenSequence<PTokenId> ts) {
-        while (ts.token() != null && (ts.token().id() == PTokenId.WHITESPACE || ts.token().id() == PTokenId.COMMENT))
+    static Token<PTokenId> skipWhitespaceComment(TokenSequence<PTokenId> ts) {
+        while (ts.token() != null && (ts.token().id() == PTokenId.WHITESPACE || ts.token().id() == PTokenId.COMMENT || ts.token().id() == PTokenId.LINE_COMMENT))
         {
             if (!ts.moveNext()) {
                 return null;
@@ -102,14 +103,14 @@ class PuppetParser extends Parser {
         return ts.token();
     }
 
-    private Token<PTokenId> nextSkipWhitespaceComment(TokenSequence<PTokenId> ts) {
+    static Token<PTokenId> nextSkipWhitespaceComment(TokenSequence<PTokenId> ts) {
         if (!ts.moveNext()) {
             return null;
         }
         return skipWhitespaceComment(ts);
     }
-    private Token<PTokenId> backoffWhitespaceComment(TokenSequence<PTokenId> ts) {
-        while (ts.token() != null && (ts.token().id() == PTokenId.WHITESPACE || ts.token().id() == PTokenId.COMMENT))
+    static Token<PTokenId> backoffWhitespaceComment(TokenSequence<PTokenId> ts) {
+        while (ts.token() != null && (ts.token().id() == PTokenId.WHITESPACE || ts.token().id() == PTokenId.COMMENT || ts.token().id() == PTokenId.LINE_COMMENT))
         {
             if (!ts.movePrevious()) {
                 return null;
@@ -118,7 +119,7 @@ class PuppetParser extends Parser {
         return ts.token();
     }
 
-    private Token<PTokenId> prevBackoffWhitespaceComment(TokenSequence<PTokenId> ts) {
+    static Token<PTokenId> prevBackoffWhitespaceComment(TokenSequence<PTokenId> ts) {
         if (!ts.movePrevious()) {
             return null;
         }
@@ -140,12 +141,12 @@ class PuppetParser extends Parser {
         return name.toString();
     }
 
-    private PBlob fastForward(@NullAllowed PElement parent, TokenSequence<PTokenId> ts, PTokenId... stopTokens) {
+    private PBlob fastForward(@NullAllowed PElement parent, TokenSequence<PTokenId> ts, boolean allowResources, PTokenId... stopTokens) {
         PBlob blob = new PBlob(parent, ts.offset());
-        return fastForwardImpl(blob, ts, stopTokens);
+        return fastForwardImpl(blob, ts, allowResources, stopTokens);
     }
 
-    private PBlob fastForwardImpl(@NonNull PBlob blob, TokenSequence<PTokenId> ts, PTokenId... stopTokens) {
+    private PBlob fastForwardImpl(@NonNull PBlob blob, TokenSequence<PTokenId> ts, boolean allowResources, PTokenId... stopTokens) {
         Token<PTokenId> token = ts.token();
         List<PTokenId> stops = Arrays.asList(stopTokens);
         int braceCount = 0;
@@ -225,43 +226,49 @@ class PuppetParser extends Parser {
                 case IDENTIFIER:
                 case CLASS:
                     val = token.text().toString();
+                    off = ts.offset();
+                    PTypeReference ref = null;
                     if (token.id() == PTokenId.IDENTIFIER) {
                         //check unknown functions
-                        off = ts.offset();
-                        String name = token.text().toString();
-                        if ("Class".equals(name)) {
-                            parseClassReference(ts, blob);
-                        }
                         token = nextSkipWhitespaceComment(ts);
                         if (token.id() == PTokenId.LPAREN) {
                             ts.moveNext();
-                            parseFunction(new PFunction(blob, off, name), ts);
+                            parseFunction(new PFunction(blob, off, val), ts);
                             break;
-                        } else if (token.id() == PTokenId.LBRACKET && Character.isUpperCase(name.charAt(0))) {
+                        } else if (Character.isUpperCase(val.charAt(0))) {
                             //TODO how is array access handled? eg. aa[1]? or will we always get just $aa[1]?
-                            ts.moveNext();
-                            parseTypeRef(new PTypeReference(blob, off, name), ts);
-                            break;
+                            ref = new PTypeReference(null, off, val);
+                            parseTypeRef(ref, val, ts);
+                            token = ts.token();
                         } else {
                             token = prevBackoffWhitespaceComment(ts);
                         }
                     }
-                    if (bracketCount == 0 && parenCount == 0) {
+                    if (allowResources && bracketCount == 0 && parenCount == 0) {
                         boolean isClass = token.id() == PTokenId.CLASS;
                         off = ts.offset();
                         token = nextSkipWhitespaceComment(ts);
                         if (token != null && token.id() == PTokenId.LBRACE) {
-                            parseResource(blob, val, ts, off);
+                            ref = ref != null ? ref : new PTypeReference(null, off, val);
+                            if (isClass) {
+                                ref.setRepresentsClass(true);
+                            }
+                            parseResource(blob, ref, ts, off);
                         } else if (isClass && token != null && token.id() == PTokenId.IDENTIFIER) {
                             String name = token.text().toString();
                             nextSkipWhitespaceComment(ts);
                             final PClass pClass = new PClass(blob, off);
                             parseClassInternal(pClass, new PIdentifier(pClass, ts.offset(), name), ts);
-                        } else if (token != null && token.id() == PTokenId.LBRACKET && Character.isUpperCase(val.charAt(0))) {
-    //                    parseReference(pc, val);
-                            continue; //for now, to properly eat LBRACKET
                         } else {
+                            if (ref != null) {
+                                ref.setParent(blob);
+                            }
                             continue;
+                        }
+                    } else {
+                        if (ref != null) {
+                            ref.setParent(blob);
+                            break;
                         }
                     }
                     break;
@@ -332,7 +339,7 @@ class PuppetParser extends Parser {
                 //we are done for define
                 //internals or skip to RBRACE
                 ts.moveNext();
-                fastForward(pc, ts, PTokenId.RBRACE);
+                fastForward(pc, ts, true, PTokenId.RBRACE);
             }
         }
     }
@@ -359,7 +366,7 @@ class PuppetParser extends Parser {
             //we are done for node
             //internals or skip to RBRACE
             ts.moveNext();
-            fastForward(pc, ts, PTokenId.RBRACE);
+            fastForward(pc, ts, true, PTokenId.RBRACE);
         }
     }
 
@@ -402,7 +409,7 @@ class PuppetParser extends Parser {
             //we are done for class
             //internals or skip to RBRACE
             ts.moveNext();
-            fastForward(pc, ts, PTokenId.RBRACE);
+            fastForward(pc, ts, true, PTokenId.RBRACE);
         }
     }
 
@@ -424,7 +431,7 @@ class PuppetParser extends Parser {
                 offset = offset != 0 ? offset : ts.offset();
             }
             if (token.id() == PTokenId.EQUALS) {
-                def = fastForward(null, ts, PTokenId.RPAREN, PTokenId.COMMA);
+                def = fastForward(null, ts, false, PTokenId.RPAREN, PTokenId.COMMA);
                 token = ts.token();
                 if (token.id() == PTokenId.RPAREN) {
                     break;
@@ -460,43 +467,93 @@ class PuppetParser extends Parser {
         pc.setParams(params.toArray(new PClassParam[0]));
     }
 
-    private void parseResource(PElement pc, String type, TokenSequence<PTokenId> ts, int resOff) {
-        if (Character.isUpperCase(type.charAt(0))) {
+    private @CheckForNull PResource parseResource(PElement pc, PTypeReference type, TokenSequence<PTokenId> ts, int resOff) {
+        if ("Class".equals(type.getType())) {
+            type.setRepresentsClass(true);
+        } else {
+            type.setRepresentsResource(true);
+        }
+        if (type.isDataType()) {
+            // File { } -> no titles
             PResource resource = new PResource(pc, resOff, type);
             parseResourceAttrs(resource, ts);
-        } else {
-            Token<PTokenId> token = nextSkipWhitespaceComment(ts);
-            if (token != null) {
-                PElement title;
-                if (token.id() == PTokenId.STRING_LITERAL) {
-                    if ("class".equals(type)) {
-                        String tts = token.text().toString();
-                        title = new PClassRef(null, ts.offset());
-                        ((PClassRef)title).setName(new PIdentifier(title, ts.offset() + 1, tts.substring(1, tts.length() - 1)));
-                    } else {
-                        title = new PString(null, ts.offset(), token.text().toString());
-                    }
-                } else if (token.id() == PTokenId.VARIABLE) {
-                    title = new PVariable(null, ts.offset(), token.text().toString());
-                } else if (token.id() == PTokenId.LBRACKET) {
-                    PBlob blob = new PBlob(null, ts.offset());
-                    //current token in LBRACKET which we need to skip here, to actually bump into the right RBRACKET
-                    ts.moveNext();
-                    title = fastForwardImpl(blob, ts, PTokenId.RBRACKET);
-                } else if (token.id() == PTokenId.IDENTIFIER) {
-                    title = new PString(null, ts.offset(), token.text().toString()); //TODO not real string or unquoted string
+            return resource;
+        }
+        List<PElement> titles = new ArrayList<>();
+        Token<PTokenId> token = nextSkipWhitespaceComment(ts);
+        boolean inBracket = false;
+        while (token != null) {
+            if (token.id() == PTokenId.STRING_LITERAL) {
+                if (type.isRepresentsClass()) {
+                    PClassRef cr = new PClassRef(null, ts.offset());
+                    final PIdentifier pIdentifier = new PIdentifier(cr, ts.offset() + 1, token.text().toString().substring(1, token.text().toString().length() - 1));
+                    cr.setName(pIdentifier);
+                    titles.add(cr);
+                    //STRING to wrap PVariables in..
+                    new PString(pIdentifier, ts.offset(), token.text().toString());
+                } else if (type.isRepresentsResource()) {
+
+                    PResourceRef rr = new PResourceRef(null, ts.offset());
+                    final PIdentifier pIdentifier = new PIdentifier(rr, ts.offset() + 1, token.text().toString().substring(1, token.text().toString().length() - 1));
+                    rr.setName(pIdentifier);
+                    //STRING to wrap PVariables in..
+                    new PString(pIdentifier, ts.offset(), token.text().toString());
+                    titles.add(rr);
                 } else {
-                    throw new IllegalStateException("token:" + token.text().toString() + " of type:" + token.id() + " in " + ts.toString());
+                    throw new IllegalStateException();
                 }
-                token = nextSkipWhitespaceComment(ts);
-                if (token != null && token.id() == PTokenId.COLON) {
-                    PResource resource = new PResource(pc, resOff, type);
+            } else if (token.id() == PTokenId.VARIABLE) {
+                if (type.isRepresentsClass()) {
+                    PClassRef cr = new PClassRef(null, ts.offset());
+                    cr.setName(new PIdentifier(cr, ts.offset() + 1, token.text().toString().substring(1, token.text().toString().length() - 1)));
+                    titles.add(cr);
+                }
+                else if (type.isRepresentsResource()) {
+                    PResourceRef rr = new PResourceRef(null, ts.offset());
+                    final PIdentifier pIdentifier = new PIdentifier(rr, ts.offset(), token.text().toString().substring(1, token.text().toString().length()));
+                    rr.setName(pIdentifier);
+                    //embed PVariable
+                    new PVariable(pIdentifier, ts.offset(), token.text().toString());
+                    titles.add(rr);
+                } else {
+                    throw new IllegalStateException();
+                }
+            } else if (token.id() == PTokenId.LBRACKET) {
+                inBracket = true;
+            } else if (token.id() == PTokenId.RBRACKET) {
+                inBracket = false;
+            } else if (token.id() == PTokenId.COMMA) {
+                if (inBracket) {
+                    token = nextSkipWhitespaceComment(ts);
+                    continue;
+                } else {
+                    new PError(pc, ts.offset());
+                    return null;
+                }
+            } else {
+                throw new IllegalStateException("token:" + token.text().toString() + " of type:" + token.id() + " in " + ts.toString());
+            }
+            token = nextSkipWhitespaceComment(ts);
+            if (token != null && token.id() == PTokenId.COLON) {
+                if (inBracket) {
+                    //Error?
+                    continue;
+                }
+                PResource resource = new PResource(pc, resOff, type);
+                type.setParent(resource);
+                for (PElement title : titles) {
                     title.setParent(resource);
-                    resource.setTitle(title);
-                    parseResourceAttrs(resource, ts);
+                    resource.addTitle(title);
                 }
+                parseResourceAttrs(resource, ts);
+                return resource;
+            }
+            if (token != null && token.id() == PTokenId.RBRACE) {
+                new PError(pc, ts.offset());
+                return null;
             }
         }
+        return null;
     }
 
     private void parseResourceAttrs(PResource resource, TokenSequence<PTokenId> ts) {
@@ -511,7 +568,7 @@ class PuppetParser extends Parser {
             }
             if (token.id() == PTokenId.PARAM_ASSIGN) {
                 nextSkipWhitespaceComment(ts);
-                val = fastForward(null, ts, PTokenId.COMMA, PTokenId.RBRACE);
+                val = fastForward(null, ts, false, PTokenId.COMMA, PTokenId.RBRACE);
                 token = ts.token();
                 continue;
             }
@@ -531,6 +588,9 @@ class PuppetParser extends Parser {
 //            assert val != null;
             PResourceAttribute param = new PResourceAttribute(resource, off, attr);
             param.setValue(val);
+            if (val != null) {
+                val.setParent(param);
+            }
             resource.addAttribute(param);
         }
     }
@@ -538,18 +598,18 @@ class PuppetParser extends Parser {
     private void parseCase(PElement parent, TokenSequence<PTokenId> ts) {
         PCase pcase = new PCase(parent, ts.offset());
         nextSkipWhitespaceComment(ts);
-        PBlob caseExpr = fastForward(pcase, ts, PTokenId.LBRACE);
+        PBlob caseExpr = fastForward(pcase, ts, false, PTokenId.LBRACE);
         pcase.setControl(caseExpr);
         Token<PTokenId> token = ts.token();
         nextSkipWhitespaceComment(ts);
         while (token.id() != PTokenId.RBRACE) {
-            PBlob cas = fastForward(pcase, ts, PTokenId.COLON);
+            PBlob cas = fastForward(pcase, ts, false, PTokenId.COLON);
             nextSkipWhitespaceComment(ts);
             token = ts.token();
             PBlob caseBody;
             if (token.id() == PTokenId.LBRACE) {
                 nextSkipWhitespaceComment(ts);
-                caseBody = fastForward(pcase, ts, PTokenId.RBRACE);
+                caseBody = fastForward(pcase, ts, true, PTokenId.RBRACE);
                 pcase.addCase(cas, caseBody);
             } else {
                 //huh? what to do here?
@@ -562,9 +622,9 @@ class PuppetParser extends Parser {
     private void parseIf(PElement parent, TokenSequence<PTokenId> ts, boolean includeElseIf) {
         PCondition cond = new PCondition(parent, ts.offset());
         nextSkipWhitespaceComment(ts);
-        cond.setCondition(fastForward(cond, ts, PTokenId.LBRACE));
+        cond.setCondition(fastForward(cond, ts, false, PTokenId.LBRACE));
         nextSkipWhitespaceComment(ts);
-        cond.setConsequence(fastForward(cond, ts, PTokenId.RBRACE));
+        cond.setConsequence(fastForward(cond, ts, true, PTokenId.RBRACE));
         nextSkipWhitespaceComment(ts);
         Token<PTokenId> token = ts.token();
         while (token.id() == PTokenId.ELSE || (includeElseIf && token.id() == PTokenId.ELSIF)) {
@@ -576,17 +636,17 @@ class PuppetParser extends Parser {
                     //ignore?
                     return;
                 }
-                cond.setOtherwise(fastForward(cond, ts, PTokenId.RBRACE));
+                cond.setOtherwise(fastForward(cond, ts, true, PTokenId.RBRACE));
                 return;
             } else {
                 nextSkipWhitespaceComment(ts);
                 PCondition par = cond;
                 cond = new PCondition(par, ts.offset());
                 par.setOtherwise(cond);
-                PBlob caseExpr = fastForward(cond, ts, PTokenId.LBRACE);
+                PBlob caseExpr = fastForward(cond, ts, false, PTokenId.LBRACE);
                 cond.setCondition(caseExpr);
                 nextSkipWhitespaceComment(ts);
-                cond.setConsequence(fastForward(cond, ts, PTokenId.RBRACE));
+                cond.setConsequence(fastForward(cond, ts, true, PTokenId.RBRACE));
                 nextSkipWhitespaceComment(ts);
                 token = ts.token();
             }
@@ -596,11 +656,20 @@ class PuppetParser extends Parser {
     }
 
     private void parseFunction(PFunction pFunction, TokenSequence<PTokenId> ts) {
-        fastForward(pFunction, ts, PTokenId.RPAREN);
+        fastForward(pFunction, ts, false, PTokenId.RPAREN);
     }
 
-    private void parseTypeRef(PTypeReference pTypeReference, TokenSequence<PTokenId> ts) {
-        fastForward(pTypeReference, ts, PTokenId.RBRACKET);
+    //current token to be either [ or unrelated
+    private void parseTypeRef(PTypeReference pTypeReference, String name, TokenSequence<PTokenId> ts) {
+        pTypeReference.parseTypes(pTypeReference, name, ts);
+    }
+
+    static boolean matches (Token<PTokenId> token, PTokenId id) {
+        return token != null && token.id() == id;
+    }
+
+    static boolean matches (Token<PTokenId> token, PTokenId[] ids) {
+        return token != null && Arrays.asList(ids).contains(token.id());
     }
 
     private void parseReqList(PFunction reqFunc, TokenSequence<PTokenId> ts) {

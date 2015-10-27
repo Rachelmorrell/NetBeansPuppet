@@ -95,7 +95,7 @@ public class SemanticColoring extends ParserResultTask<PuppetParserResult> {
                     }
                     AttributeSet resAttrs = fcs.getTokenFontColors(COLOR_RESOURCENAME);
                     for (PResource res : root.getChildrenOfType(PResource.class, true)) {
-                        bag.addHighlight(res.getOffset(), res.getOffset() + res.getResourceType().length(), resAttrs);
+                        bag.addHighlight(res.getOffset(), res.getResourceType().getEndOffset(), resAttrs);
                     }
                     AttributeSet resAttrAttrs = fcs.getTokenFontColors(COLOR_RESOURCEPARAMETER);
                     AttributeSet metaresAttrAttrs = fcs.getTokenFontColors("resource-metaparameter");

@@ -86,7 +86,7 @@ public class PPIndexer extends EmbeddingIndexer {
         PuppetParserResult res = (PuppetParserResult) parserResult;
         PElement root = res.getRootNode();
         for (PElement ch : root.getChildren()) {
-            if (ch.getType() == PElement.CLASS) {
+            if (ch.getKind() == PElement.CLASS) {
                 PClass cl = (PClass)ch;
                 String name = cl.getName();
                 document.addPair(FLD_ROOT, name, true, true);
@@ -96,7 +96,7 @@ public class PPIndexer extends EmbeddingIndexer {
                     document.addPair(FLD_INHERIT, cl.getInherits().getName(), true, true);
                 }
             }
-            if (ch.getType() == PElement.DEFINE) {
+            if (ch.getKind() == PElement.DEFINE) {
                 PDefine def = (PDefine)ch;
                 String name = def.getName();
                 document.addPair(FLD_ROOT, name, true, true);
@@ -135,7 +135,7 @@ public class PPIndexer extends EmbeddingIndexer {
             Set<String> resNames = new HashSet<>();
 
             for (PResource r : resources) {
-                resNames.add(r.getResourceType());
+                resNames.add(r.getResourceType().getType());
             }
             for (String r : resNames) {
                 document.addPair(FLD_RESOURCE, r, true, false);
