@@ -18,6 +18,7 @@ package com.tropyx.nb_puppet.semantic;
 
 import com.tropyx.nb_puppet.PPConstants;
 import com.tropyx.nb_puppet.parser.PElement;
+import com.tropyx.nb_puppet.parser.PError;
 import com.tropyx.nb_puppet.parser.PFunction;
 import com.tropyx.nb_puppet.parser.PResource;
 import com.tropyx.nb_puppet.parser.PResourceAttribute;
@@ -50,6 +51,7 @@ public class SemanticColoring extends ParserResultTask<PuppetParserResult> {
     public static final String COLOR_RESOURCENAME = "resource-name";
     public static final String COLOR_METHODDECLARATION = "method-declaration";
     public static final String COLOR_LOCAL_VARIABLE = "local-variable";
+    public static final String COLOR_ERROR = "errors";
 
     private final static List<String> metaparameters = Arrays.asList(new String[] {
        "alias", "audit", "before", "loglevel", "noop", "notify",
@@ -113,7 +115,10 @@ public class SemanticColoring extends ParserResultTask<PuppetParserResult> {
                             bag.addHighlight(v.getOffset(), v.getOffset() + v.getName().length(), localVarsAttrs);
                         }
                     }
-
+                    AttributeSet errorAttrs = fcs.getTokenFontColors(COLOR_ERROR);
+                    for (PError err : root.getChildrenOfType(PError.class, true)) {
+                        bag.addHighlight(err.getOffset(), err.getOffset() + 2, errorAttrs);
+                    }
                     rootBag.setHighlights(bag);
                 }
             });
